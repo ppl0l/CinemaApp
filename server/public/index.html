@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineTrack SPA</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>CineTrack</h1>
+  </header>
+
+  <main class="container">
+    <section class="add-form">
+      <div id="error-box" class="message-box error" style="display: none;"></div>
+
+      <form id="item-form">
+        <input type="hidden" id="edit-id">
+        <div class="form-grid">
+          <div class="field">
+            <label>Название</label>
+            <input type="text" id="title" placeholder="Введите название..." required>
+          </div>
+
+          <div class="field">
+            <label>Тип</label>
+            <select id="type">
+              <option value="Фильм">Фильм</option>
+              <option value="Сериал">Сериал</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Статус</label>
+            <select id="statusId">
+              <option value="plan">В планах</option>
+              <option value="watching">Смотрю</option>
+              <option value="completed">Завершено</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Дата</label>
+            <input type="date" id="dueDate" required>
+          </div>
+
+          <div class="field">
+            <label>Постер</label>
+            <label class="file-label" for="poster-input">
+              <span id="file-label-text">Выберите файл...</span>
+              <input type="file" id="poster-input" accept="image/*">
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <button type="submit" class="btn-submit" id="submit-btn">Добавить</button>
+            <button type="button" class="btn-cancel" id="cancel-btn" style="display: none;" onclick="cancelEdit()">Отмена</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <div class="filters" id="filters">
+      <a data-filter="all" class="active">Все</a>
+      <a data-filter="plan">В планах</a>
+      <a data-filter="watching">Смотрю</a>
+      <a data-filter="completed">Завершено</a>
+    </div>
+
+    <div class="grid" id="items-grid"></div>
+  </main>
+
+  <footer>
+    CineTrack 2026 SPA
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

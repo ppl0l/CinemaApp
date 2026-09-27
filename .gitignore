@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Загруженные пользователем файлы (не коммитим!)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Логи и переменные окружения
+*.log
+.env
+
+# Системное
+.DS_Store
+Thumbs.db
+
+# Редакторы
+.vscode/
+.idea/
