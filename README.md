@@ -209,8 +209,4 @@ The app waits for MongoDB to be ready (via `depends_on` + healthcheck) before st
 
 ---
 
-## 📞 Contacts
-
-Repository: **github.com/ppl0l/CinemaApp**
-
 Laboratory work for the *"Modern Programming Platforms"* course.
