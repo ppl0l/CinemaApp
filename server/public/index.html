@@ -7,11 +7,37 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header>
-    <h1>CineTrack</h1>
+  <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
+    <div style="width: 80px;"></div>
+    <h1 style="margin: 0; text-align: center;">CineTrack</h1>
+    <div id="auth-section" style="width: 80px; display: flex; justify-content: flex-end;">
+      <button id="login-toggle-btn" class="btn-submit" style="width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Вход</button>
+      <button id="logout-btn" class="btn-cancel" style="display: none; width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Выйти</button>
+    </div>
   </header>
 
   <main class="container">
+    <div id="login-modal" class="add-form" style="display: none; margin-bottom: 16px; border-color: var(--primary);">
+      <h3 style="margin-bottom: 10px;">Авторизация</h3>
+      <form id="login-form" class="form-grid">
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="login-email" placeholder="email@example.com" required>
+        </div>
+        <div class="field">
+          <label>Пароль</label>
+          <input type="text" id="login-password" placeholder="Пароль" required>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn-submit">Войти</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="welcome-message" class="empty-state" style="display: none; margin-bottom: 16px; background: #fff; padding: 15px; border-radius: 8px; text-align: center; color: var(--text-secondary);">
+      Пожалуйста, войдите в систему для просмотра задач
+    </div>
+
     <section class="add-form">
       <div id="error-box" class="message-box error" style="display: none;"></div>
 

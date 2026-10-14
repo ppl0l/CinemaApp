@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:7.0
     container_name: cinetrack_mongo
     restart: always
     ports:
-      - "27017:27017"
+      - '27017:27017'
     volumes:
       - mongo_data:/data/db
 
@@ -15,9 +13,13 @@ services:
     container_name: cinetrack_app
     restart: always
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - MONGO_URI=mongodb://mongo:27017/cinetrack
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - server/.env
     depends_on:
       - mongo
 

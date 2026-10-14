@@ -1,144 +1,90 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const cors = require('cors');
-const WatchlistItem = require('./models/WatchlistItem');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+const logger = require('./utils/logger');
+const User = require('./models/User');
+const authRoutes = require('./routes/auth');
+const itemRoutes = require('./routes/items');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cinetrack';
+const MONGO_URI =
+  process.env.MONGO_URI || 'mongodb://localhost:27017/cinetrack';
+const WINDOW_MS = 5 * 60 * 1000;
 
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
+app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
+app.use(express.json({ limit: '1mb' }));
+
+app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  res.setHeader('X-Request-Id', req.id);
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    logger.info('HTTP', {
+      requestId: req.id,
+      method: req.method,
+      url: req.originalUrl,
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+app.use(rateLimit({ windowMs: WINDOW_MS, max: 300 }));
+app.use(
+  '/api/auth',
+  rateLimit({
+    windowMs: WINDOW_MS,
+    max: 20,
+    message: { error: 'Слишком много попыток. Попробуйте позже.' },
+  })
+);
+
+app.use('/api/auth', authRoutes);
+app.use('/api/items', itemRoutes);
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+async function seedUsers() {
+  try {
+    if ((await User.countDocuments()) > 0) return;
+    const passwordHash = await bcrypt.hash('password123', 10);
+    await User.create([
+      { email: 'admin@cinetrack.com', passwordHash, role: 'admin' },
+      { email: 'editor@cinetrack.com', passwordHash, role: 'editor' },
+      { email: 'viewer@cinetrack.com', passwordHash, role: 'viewer' },
+    ]);
+    logger.info('Test users seeded');
+  } catch (err) {
+    logger.error('Error seeding users', { err: err.message });
+  }
 }
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-      cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
-    }
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Только изображения разрешены'));
-  }
-});
-
-const STATUS_MAP = {
-  plan: 'В планах',
-  watching: 'Смотрю',
-  completed: 'Завершено'
-};
-
-app.get('/api/items', async (req, res) => {
+async function start() {
   try {
-    const { status } = req.query;
-    const filter = status && status !== 'all' ? { 'status.id': status } : {};
-    const items = await WatchlistItem.find(filter).sort({ createdAt: -1 });
-    res.status(200).json(items);
+    await mongoose.connect(MONGO_URI);
+    logger.info('MongoDB connected');
+    await seedUsers();
+    app.listen(PORT, () => logger.info(`Server on http://localhost:${PORT}`));
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка сервера при получении данных' });
+    logger.error('Startup error', { err: err.message });
+    process.exit(1);
   }
-});
+}
 
-app.post('/api/items', upload.single('poster'), async (req, res) => {
-  try {
-    const { title, type, statusId, dueDate } = req.body;
+if (require.main === module) start();
 
-    if (!title || !type || !statusId || !dueDate) {
-      if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'Заполните все обязательные поля.' });
-    }
-
-    if (!STATUS_MAP[statusId]) {
-      if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'Некорректный статус.' });
-    }
-
-    const newItem = await WatchlistItem.create({
-      title: title.trim(),
-      type,
-      status: { id: statusId, label: STATUS_MAP[statusId] },
-      dueDate,
-      poster: req.file ? `/uploads/${req.file.filename}` : null
-    });
-
-    res.status(201).json(newItem);
-  } catch (err) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(400).json({ error: 'Ошибка при создании записи.' });
-  }
-});
-
-app.put('/api/items/:id', upload.single('poster'), async (req, res) => {
-  try {
-    const { title, type, statusId, dueDate } = req.body;
-    const item = await WatchlistItem.findById(req.params.id);
-
-    if (!item) {
-      if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(404).json({ error: 'Элемент не найден.' });
-    }
-
-    if (title) item.title = title.trim();
-    if (type) item.type = type;
-    if (dueDate) item.dueDate = dueDate;
-    
-    if (statusId) {
-      if (!STATUS_MAP[statusId]) {
-        if (req.file) fs.unlinkSync(req.file.path);
-        return res.status(400).json({ error: 'Некорректный статус.' });
-      }
-      item.status = { id: statusId, label: STATUS_MAP[statusId] };
-    }
-
-    if (req.file) {
-      if (item.poster) {
-        const oldPosterPath = path.join(__dirname, item.poster);
-        if (fs.existsSync(oldPosterPath)) fs.unlinkSync(oldPosterPath);
-      }
-      item.poster = `/uploads/${req.file.filename}`;
-    }
-
-    await item.save();
-    res.status(200).json(item);
-  } catch (err) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(400).json({ error: 'Ошибка при обновлении записи.' });
-  }
-});
-
-app.delete('/api/items/:id', async (req, res) => {
-  try {
-    const item = await WatchlistItem.findById(req.params.id);
-    if (!item) return res.status(404).json({ error: 'Элемент не найден.' });
-
-    if (item.poster) {
-      const posterPath = path.join(__dirname, item.poster);
-      if (fs.existsSync(posterPath)) fs.unlinkSync(posterPath);
-    }
-
-    await item.deleteOne();
-    res.status(200).json({ message: 'Успешно удалено' });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка при удалении элемента.' });
-  }
-});
-
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('MongoDB connected');
-    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-  })
-  .catch(err => console.error('MongoDB connection error:', err));
-  
+module.exports = app;

@@ -1,6 +1,37 @@
-**/node_modules
-**/uploads
+# Node
+server/node_modules
+
+# Uploads
+server/uploads
+!server/uploads/.gitkeep
+
+# Logs & secrets
 *.log
+server/.env
+server/.env.*
+
+# Docs
+server/README.md
+README.md
+
+# Dev tools
+server/.eslintrc.json
+server/.prettierrc
+server/jest.config.js
+
+# Tests
+server/tests
+server/coverage
+
+# Editors
+.vscode
+.idea
+
+# Git
 .git
 .gitignore
-README.md
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
