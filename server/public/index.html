@@ -7,94 +7,139 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
-    <div style="width: 80px;"></div>
-    <h1 style="margin: 0; text-align: center;">CineTrack</h1>
-    <div id="auth-section" style="width: 80px; display: flex; justify-content: flex-end;">
-      <button id="login-toggle-btn" class="btn-submit" style="width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Вход</button>
-      <button id="logout-btn" class="btn-cancel" style="display: none; width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Выйти</button>
+  <header class="app-header">
+    <div class="header-spacer"></div>
+    <h1>CineTrack</h1>
+    <div id="auth-section" class="auth-section">
+      <button id="login-toggle-btn" class="btn-submit btn-small">Вход</button>
+      <button id="logout-btn" class="btn-cancel btn-small" style="display: none;">Выйти</button>
     </div>
   </header>
 
   <main class="container">
-    <div id="login-modal" class="add-form" style="display: none; margin-bottom: 16px; border-color: var(--primary);">
-      <h3 style="margin-bottom: 10px;">Авторизация</h3>
-      <form id="login-form" class="form-grid">
+    <section id="reset-password-section" class="add-form" style="display: none;">
+      <h3 class="form-title">Новый пароль</h3>
+
+      <div id="reset-message" class="message-box" style="display: none;"></div>
+
+      <form id="reset-password-form" class="form-grid">
         <div class="field">
-          <label>Email</label>
-          <input type="text" id="login-email" placeholder="email@example.com" required>
+          <label>Новый пароль</label>
+          <input type="password" id="new-password" placeholder="Минимум 8 символов" required minlength="8">
         </div>
         <div class="field">
-          <label>Пароль</label>
-          <input type="text" id="login-password" placeholder="Пароль" required>
+          <label>Повторите пароль</label>
+          <input type="password" id="confirm-password" placeholder="Повторите пароль" required minlength="8">
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button type="submit" class="btn-submit">Войти</button>
+        <div class="form-buttons">
+          <button type="submit" class="btn-submit" id="reset-submit-btn">Сменить пароль</button>
         </div>
       </form>
-    </div>
 
-    <div id="welcome-message" class="empty-state" style="display: none; margin-bottom: 16px; background: #fff; padding: 15px; border-radius: 8px; text-align: center; color: var(--text-secondary);">
-      Пожалуйста, войдите в систему для просмотра задач
-    </div>
-
-    <section class="add-form">
-      <div id="error-box" class="message-box error" style="display: none;"></div>
-
-      <form id="item-form">
-        <input type="hidden" id="edit-id">
-        <div class="form-grid">
-          <div class="field">
-            <label>Название</label>
-            <input type="text" id="title" placeholder="Введите название..." required>
-          </div>
-
-          <div class="field">
-            <label>Тип</label>
-            <select id="type">
-              <option value="Фильм">Фильм</option>
-              <option value="Сериал">Сериал</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Статус</label>
-            <select id="statusId">
-              <option value="plan">В планах</option>
-              <option value="watching">Смотрю</option>
-              <option value="completed">Завершено</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Дата</label>
-            <input type="date" id="dueDate" required>
-          </div>
-
-          <div class="field">
-            <label>Постер</label>
-            <label class="file-label" for="poster-input">
-              <span id="file-label-text">Выберите файл...</span>
-              <input type="file" id="poster-input" accept="image/*">
-            </label>
-          </div>
-
-          <div style="display: flex; gap: 8px;">
-            <button type="submit" class="btn-submit" id="submit-btn">Добавить</button>
-            <button type="button" class="btn-cancel" id="cancel-btn" style="display: none;" onclick="cancelEdit()">Отмена</button>
-          </div>
-        </div>
-      </form>
+      <p class="form-footer-link">
+        <a href="/">← Вернуться на главную</a>
+      </p>
     </section>
 
-    <div class="filters" id="filters">
-      <a data-filter="all" class="active">Все</a>
-      <a data-filter="plan">В планах</a>
-      <a data-filter="watching">Смотрю</a>
-      <a data-filter="completed">Завершено</a>
-    </div>
+    <div id="main-app">
 
-    <div class="grid" id="items-grid"></div>
+      <div id="login-modal" class="add-form modal-highlight" style="display: none;">
+        <h3 class="form-title">Авторизация</h3>
+        <form id="login-form" class="form-grid">
+          <div class="field">
+            <label>Email</label>
+            <input type="text" id="login-email" placeholder="email@example.com" required>
+          </div>
+          <div class="field">
+            <label>Пароль</label>
+            <input type="password" id="login-password" placeholder="Пароль" required>
+          </div>
+          <div class="form-buttons">
+            <button type="submit" class="btn-submit">Войти</button>
+          </div>
+        </form>
+        <p class="form-footer-link">
+          <a href="#" id="forgot-link">Забыли пароль?</a>
+        </p>
+      </div>
+
+      <div id="recover-modal" class="add-form modal-highlight" style="display: none;">
+        <h3 class="form-title">Восстановление пароля</h3>
+        <form id="recover-form" class="form-grid">
+          <div class="field">
+            <label>Email</label>
+            <input type="text" id="recover-email" placeholder="email@example.com" required>
+          </div>
+          <div class="form-buttons">
+            <button type="submit" class="btn-submit">Отправить</button>
+            <button type="button" class="btn-cancel" id="recover-cancel">Отмена</button>
+          </div>
+        </form>
+        <div id="recover-message" class="message-box" style="display: none;"></div>
+      </div>
+
+      <div id="welcome-message" class="empty-state" style="display: none;">
+        Пожалуйста, войдите в систему для просмотра задач
+      </div>
+
+      <section class="add-form">
+        <div id="error-box" class="message-box error" style="display: none;"></div>
+
+        <form id="item-form">
+          <input type="hidden" id="edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>Название</label>
+              <input type="text" id="title" placeholder="Введите название..." required>
+            </div>
+
+            <div class="field">
+              <label>Тип</label>
+              <select id="type">
+                <option value="Фильм">Фильм</option>
+                <option value="Сериал">Сериал</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Статус</label>
+              <select id="statusId">
+                <option value="plan">В планах</option>
+                <option value="watching">Смотрю</option>
+                <option value="completed">Завершено</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Дата</label>
+              <input type="date" id="dueDate" required>
+            </div>
+
+            <div class="field">
+              <label>Постер</label>
+              <label class="file-label" for="poster-input">
+                <span id="file-label-text">Выберите файл...</span>
+                <input type="file" id="poster-input" accept="image/*">
+              </label>
+            </div>
+
+            <div class="form-buttons">
+              <button type="submit" class="btn-submit" id="submit-btn">Добавить</button>
+              <button type="button" class="btn-cancel" id="cancel-btn" style="display: none;">Отмена</button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <div class="filters" id="filters">
+        <a data-filter="all" class="active">Все</a>
+        <a data-filter="plan">В планах</a>
+        <a data-filter="watching">Смотрю</a>
+        <a data-filter="completed">Завершено</a>
+      </div>
+
+      <div class="grid" id="items-grid"></div>
+    </div>
   </main>
 
   <footer>

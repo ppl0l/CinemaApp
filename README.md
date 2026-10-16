@@ -1,6 +1,6 @@
 # CineTrack 🎬
 
-A web application for managing a personal watchlist of movies and series, built as a **Single Page Application (SPA)** on the client and a **REST API** on the server with full CRUD operations, role-based access control, and automated CI.
+A web application for managing a personal watchlist of movies and series, built as a **Single Page Application (SPA)** on the client and a **REST API** on the server with full CRUD operations, role-based access control, password reset via email, and automated CI.
 
 Course: Modern Programming Platforms
 
@@ -22,7 +22,7 @@ CineTrack lets users track movies and series they plan to watch, are currently w
 - **Informative errors** — the client shows server error messages in a dedicated error box.
 - **Dockerized** — the whole stack (app + MongoDB) runs in containers via `docker-compose`.
 
-**Security & access control:**
+**Authentication & access control:**
 
 - **RBAC with 3 roles** — `admin`, `editor`, `viewer` with different permissions.
 - **Temporary API keys** — issued on login, expire after 24 hours, stored in MongoDB.
@@ -32,6 +32,15 @@ CineTrack lets users track movies and series they plan to watch, are currently w
 - **Password reset via email** — one-time token, SHA-256 hashed, sent via Nodemailer (Gmail / SMTP / Ethereal).
 - **Bcrypt password hashing** — 10 rounds, salt included.
 - **Helmet** — secure HTTP headers.
+
+**UI for authentication & recovery:**
+
+- **Login modal** — email + password, with `Забыли пароль?` link.
+- **Recover modal** — request a password-reset email from the SPA.
+- **Reset-password page** — dedicated view at `/reset-password?token=...` that the user opens from the email link.
+- **Same static assets** — the reset page reuses `index.html` + `app.js`; the client detects `?token=` in the URL and switches the UI into reset mode, hiding the main SPA.
+- **Auto-redirect** — after a successful password change, the user is redirected to `/` after 2 seconds.
+- **XSS-safe rendering** — all user-controlled strings are escaped before insertion into the DOM.
 
 **Observability & quality:**
 
@@ -61,7 +70,7 @@ CineTrack lets users track movies and series they plan to watch, are currently w
 **Frontend:**
 
 - **Vanilla JavaScript** — SPA logic, `fetch` API, DOM manipulation, XSS-safe rendering.
-- **HTML5 + CSS3** — layout with CSS variables, responsive grid.
+- **HTML5 + CSS3** — layout with CSS variables, responsive grid, unified styles via CSS classes (no inline styles).
 
 **Infrastructure & DevOps:**
 
@@ -87,8 +96,8 @@ CineApp/
 │   │   ├── User.js                 # User schema (role, apiKey, sessions, lockout)
 │   │   └── WatchlistItem.js        # Watchlist entry schema
 │   ├── public/                     # SPA (client)
-│   │   ├── app.js                  # SPA logic (auth, CRUD, filters, rendering)
-│   │   ├── index.html              # Single page
+│   │   ├── app.js                  # SPA logic + auth + reset-password flow
+│   │   ├── index.html              # Single page (used for both SPA and /reset-password)
 │   │   └── style.css               # Styles
 │   ├── routes/
 │   │   ├── auth.js                 # /login, /logout, /recover, /reset-password
@@ -188,6 +197,14 @@ On the first start the server seeds three test users:
 | PUT    | `/api/items/:id`   | Update entry (`multipart/form-data`)                             | admin, editor            | 200     | 400, 401, 403, 404 |
 | DELETE | `/api/items/:id`   | Delete entry + remove poster file from disk                      | admin only               | 200     | 401, 403, 404      |
 
+### Static routes
+
+| Method | Route              | Purpose                                                     |
+| ------ | ------------------ | ----------------------------------------------------------- |
+| GET    | `/`                | SPA page (`public/index.html`)                              |
+| GET    | `/reset-password`  | Same `index.html` — the client detects `?token=` in URL     |
+| GET    | `/uploads/*`       | Uploaded posters                                            |
+
 ### Example: login
 
 ```bash
@@ -277,12 +294,28 @@ curl -X POST http://localhost:3000/api/items \
 - Successful login resets the counter.
 - Additional protection: `express-rate-limit` on `/api/auth` — 20 req / 5 min per IP.
 
-### Password Reset via Email
+### Password Reset Flow (server + UI)
+
+**Server side:**
 
 1. `POST /api/auth/recover {email}` → generates `crypto.randomBytes(32)` raw token, stores **SHA-256 hash** in DB with 1h TTL, sends the **raw** token by email.
 2. Always returns `200` regardless of whether the email exists — anti-enumeration.
 3. `POST /api/auth/reset-password {token, newPassword}` → hashes the token again, finds matching user with unexpired token, updates `passwordHash`, clears the token, resets lockout counters, **destroys all active sessions**.
 4. Token is one-time only.
+
+**Client side (UI):**
+
+1. Login modal has a **«Забыли пароль?»** link that opens the recover modal.
+2. Recover modal sends `POST /api/auth/recover` with the entered email and shows the server response.
+3. The user opens the email, clicks the link `http://localhost:3000/reset-password?token=xxx`.
+4. Express serves the same `public/index.html` via a dedicated route `app.get('/reset-password', ...)`.
+5. `app.js` reads `window.location.search`, detects the `token` parameter, and switches the UI into **reset mode**:
+   - hides the main SPA (`#main-app[hidden]`),
+   - shows the reset form (`#reset-password-section`),
+   - hides the login/logout buttons in the header.
+6. On submit the client validates password match + min length, then sends `POST /api/auth/reset-password`.
+7. On success shows a green message and redirects to `/` after 2 seconds.
+8. Repeated use of the same token → `400 Недействительный или просроченный токен`.
 
 ### Structured Logging (Winston)
 
@@ -324,6 +357,8 @@ Uses Multer with:
 - Error messages are displayed in `#error-box`.
 - Filters are `<a>` links that trigger a re-fetch with `?status=...` — without reloading the page.
 - Auth: modal login form, `apiKey` persisted in `localStorage`.
+- Recovery: modal recover form + dedicated `/reset-password` view.
+- Styles are entirely class-based — no inline `style=` attributes for visual properties, except for the initial hidden state of modals.
 
 ### CI (GitHub Actions)
 
@@ -372,6 +407,20 @@ npm run lint           # ESLint
 npm run format         # Prettier — write
 npm run format:check   # Prettier — check only
 ```
+
+---
+
+## 🔐 Manual verification of password reset
+
+1. Start the server (`npm start`).
+2. Open `http://localhost:3000` → click **Вход** → click **Забыли пароль?**.
+3. Enter a registered email, submit.
+4. Check the Gmail inbox (or Ethereal preview URL in the server log if SMTP is not configured).
+5. Open the link from the email → you land on `/reset-password?token=...`.
+6. Enter the new password twice, submit.
+7. You are redirected to `/` after 2 seconds.
+8. Log in with the new password — works.
+9. Re-use the same link → `400 Недействительный или просроченный токен` (one-time token).
 
 ---
 

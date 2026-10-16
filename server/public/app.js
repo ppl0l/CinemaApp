@@ -3,6 +3,10 @@ let currentFilter = 'all';
 let isEditing = false;
 let apiKey = localStorage.getItem('cinetrack_token') || '';
 
+const urlParams = new URLSearchParams(window.location.search);
+const resetToken = urlParams.get('token');
+const isResetMode = Boolean(resetToken);
+
 const form = document.getElementById('item-form');
 const errorBox = document.getElementById('error-box');
 const itemsGrid = document.getElementById('items-grid');
@@ -24,6 +28,21 @@ const statusInput = document.getElementById('statusId');
 const dueDateInput = document.getElementById('dueDate');
 const loginEmailInput = document.getElementById('login-email');
 const loginPasswordInput = document.getElementById('login-password');
+
+const forgotLink = document.getElementById('forgot-link');
+const recoverModal = document.getElementById('recover-modal');
+const recoverForm = document.getElementById('recover-form');
+const recoverEmailInput = document.getElementById('recover-email');
+const recoverCancel = document.getElementById('recover-cancel');
+const recoverMessage = document.getElementById('recover-message');
+
+const mainApp = document.getElementById('main-app');
+const resetSection = document.getElementById('reset-password-section');
+const resetForm = document.getElementById('reset-password-form');
+const newPasswordInput = document.getElementById('new-password');
+const confirmPasswordInput = document.getElementById('confirm-password');
+const resetSubmitBtn = document.getElementById('reset-submit-btn');
+const resetMessage = document.getElementById('reset-message');
 
 const authHeaders = () => (apiKey ? { Authorization: `Bearer ${apiKey}` } : {});
 
@@ -51,63 +70,195 @@ function setAuthUI(loggedIn) {
   logoutBtn.style.display = loggedIn ? 'block' : 'none';
 }
 
-setAuthUI(!!apiKey);
+if (isResetMode) {
+  if (mainApp) mainApp.hidden = true;
+  resetSection.style.display = 'block';
 
-loginToggleBtn.addEventListener('click', () => {
-  loginModal.style.display =
-    loginModal.style.display === 'none' ? 'block' : 'none';
-});
+  loginToggleBtn.style.display = 'none';
+  logoutBtn.style.display = 'none';
+}
 
-loginForm.addEventListener('submit', async (e) => {
+function showResetMessage(text, isError = false) {
+  resetMessage.textContent = text;
+  resetMessage.className = isError
+    ? 'message-box error'
+    : 'message-box success';
+  resetMessage.style.display = 'block';
+}
+
+resetForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  hideError();
+
+  const newPassword = newPasswordInput.value;
+  const confirmPassword = confirmPasswordInput.value;
+
+  if (newPassword !== confirmPassword) {
+    showResetMessage('Пароли не совпадают', true);
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    showResetMessage('Пароль должен быть минимум 8 символов', true);
+    return;
+  }
+
+  resetSubmitBtn.disabled = true;
+  resetSubmitBtn.textContent = 'Отправка...';
+
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch('/api/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: loginEmailInput.value,
-        password: loginPasswordInput.value,
-      }),
+      body: JSON.stringify({ token: resetToken, newPassword }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Ошибка входа');
 
-    apiKey = data.apiKey;
-    localStorage.setItem('cinetrack_token', apiKey);
-    loginModal.style.display = 'none';
-    setAuthUI(true);
-    loadItems();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка смены пароля');
+
+    showResetMessage(
+      'Пароль успешно изменён! Сейчас перенаправим на главную...',
+      false
+    );
+
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 2000);
   } catch (err) {
-    showError(err.message);
+    showResetMessage(err.message, true);
+    resetSubmitBtn.disabled = false;
+    resetSubmitBtn.textContent = 'Сменить пароль';
   }
 });
 
-logoutBtn.addEventListener('click', () => {
-  fetch('/api/auth/logout', { method: 'POST', headers: authHeaders() }).catch(
-    () => {}
-  );
-  apiKey = '';
-  localStorage.removeItem('cinetrack_token');
-  setAuthUI(false);
-  loadItems();
-});
+if (!isResetMode) {
+  setAuthUI(!!apiKey);
 
-posterInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  fileLabelText.textContent = file ? file.name : 'Выберите файл...';
-  posterLabel.classList.toggle('has-file', !!file);
-});
+  loginToggleBtn.addEventListener('click', () => {
+    loginModal.style.display =
+      loginModal.style.display === 'none' ? 'block' : 'none';
+  });
 
-filtersContainer.addEventListener('click', (e) => {
-  if (e.target.tagName !== 'A') return;
-  document
-    .querySelectorAll('.filters a')
-    .forEach((el) => el.classList.remove('active'));
-  e.target.classList.add('active');
-  currentFilter = e.target.dataset.filter;
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: loginEmailInput.value,
+          password: loginPasswordInput.value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+
+      apiKey = data.apiKey;
+      localStorage.setItem('cinetrack_token', apiKey);
+      loginModal.style.display = 'none';
+      setAuthUI(true);
+      loadItems();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    fetch('/api/auth/logout', { method: 'POST', headers: authHeaders() }).catch(
+      () => {}
+    );
+    apiKey = '';
+    localStorage.removeItem('cinetrack_token');
+    setAuthUI(false);
+    loadItems();
+  });
+
+  forgotLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginModal.style.display = 'none';
+    recoverModal.style.display = 'block';
+    recoverMessage.style.display = 'none';
+    recoverEmailInput.value = '';
+  });
+
+  recoverCancel.addEventListener('click', () => {
+    recoverModal.style.display = 'none';
+  });
+
+  recoverForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    recoverMessage.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoverEmailInput.value }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка восстановления');
+
+      recoverMessage.textContent = data.message;
+      recoverMessage.className = 'message-box success';
+      recoverMessage.style.display = 'block';
+      recoverEmailInput.value = '';
+    } catch (err) {
+      recoverMessage.textContent = err.message;
+      recoverMessage.className = 'message-box error';
+      recoverMessage.style.display = 'block';
+    }
+  });
+
+  posterInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    fileLabelText.textContent = file ? file.name : 'Выберите файл...';
+    posterLabel.classList.toggle('has-file', !!file);
+  });
+
+  filtersContainer.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'A') return;
+    document
+      .querySelectorAll('.filters a')
+      .forEach((el) => el.classList.remove('active'));
+    e.target.classList.add('active');
+    currentFilter = e.target.dataset.filter;
+    loadItems();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+
+    const formData = new FormData();
+    formData.append('title', titleInput.value);
+    formData.append('type', typeInput.value);
+    formData.append('statusId', statusInput.value);
+    formData.append('dueDate', dueDateInput.value);
+    if (posterInput.files[0]) formData.append('poster', posterInput.files[0]);
+
+    const url = isEditing ? `${API_URL}/${editIdInput.value}` : API_URL;
+
+    try {
+      const res = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Ошибка при сохранении');
+
+      resetFormState();
+      loadItems();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  cancelBtn.addEventListener('click', resetFormState);
+
   loadItems();
-});
+}
 
 async function loadItems() {
   hideError();
@@ -170,35 +321,6 @@ function renderItems(items) {
   };
 }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  hideError();
-
-  const formData = new FormData();
-  formData.append('title', titleInput.value);
-  formData.append('type', typeInput.value);
-  formData.append('statusId', statusInput.value);
-  formData.append('dueDate', dueDateInput.value);
-  if (posterInput.files[0]) formData.append('poster', posterInput.files[0]);
-
-  const url = isEditing ? `${API_URL}/${editIdInput.value}` : API_URL;
-
-  try {
-    const res = await fetch(url, {
-      method: isEditing ? 'PUT' : 'POST',
-      headers: authHeaders(),
-      body: formData,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Ошибка при сохранении');
-
-    resetFormState();
-    loadItems();
-  } catch (err) {
-    showError(err.message);
-  }
-});
-
 function startEdit(item) {
   isEditing = true;
   editIdInput.value = item._id;
@@ -222,8 +344,6 @@ function resetFormState() {
   posterLabel.classList.remove('has-file');
 }
 
-cancelBtn.addEventListener('click', resetFormState);
-
 async function deleteItem(id) {
   hideError();
   try {
@@ -238,5 +358,3 @@ async function deleteItem(id) {
     showError(err.message);
   }
 }
-
-loadItems();

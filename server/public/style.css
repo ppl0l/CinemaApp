@@ -71,6 +71,7 @@ header h1 { color: var(--primary); font-size: 20px; }
 .field label { font-size: 12px; font-weight: bold; color: var(--muted); }
 
 input[type='text'],
+input[type='password'],
 input[type='date'],
 select {
   height: 38px;
@@ -85,12 +86,14 @@ select {
 }
 
 input[type='text']:hover,
+input[type='password']:hover,
 input[type='date']:hover,
 select:hover {
   border-color: var(--border-hover);
 }
 
 input[type='text']:focus,
+input[type='password']:focus,
 input[type='date']:focus,
 select:focus {
   border-color: var(--primary);
@@ -286,4 +289,68 @@ footer {
   .poster-wrapper {
     height: 150px;
   }
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+.header-spacer {
+  width: 80px;
+}
+
+.auth-section {
+  width: 80px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-small {
+  width: auto;
+  padding: 0 15px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.modal-highlight {
+  margin-bottom: 16px;
+  border-color: var(--primary);
+}
+
+.form-title {
+  margin-bottom: 10px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.form-footer-link {
+  margin-top: 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.form-footer-link a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.form-footer-link a:hover {
+  text-decoration: underline;
+}
+
+.message-box.success {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+  margin-bottom: 12px;
+}
+
+#main-app[hidden] {
+  display: none;
 }
